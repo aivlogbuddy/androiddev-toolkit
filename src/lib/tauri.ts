@@ -81,9 +81,44 @@ export async function listSerialPorts(): Promise<string[]> {
   }
 }
 
+export interface SerialPortInfo2 {
+  port: string;
+  baudRate: number;
+}
+
 export async function connectSerial(config: SerialConfig): Promise<ConnectResult> {
   try {
     return await invoke<ConnectResult>('connect_serial', { config });
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function serialWrite(sessionId: string, data: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    return await invoke<{ success: boolean; error?: string }>('serial_write', { sessionId, data });
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function serialRead(sessionId: string): Promise<string> {
+  try {
+    return await invoke<string>('serial_read', { sessionId });
+  } catch (error) {
+    return '';
+  }
+}
+
+export async function disconnectSerial(sessionId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    return await invoke<{ success: boolean; error?: string }>('disconnect_serial', { sessionId });
   } catch (error) {
     return {
       success: false,

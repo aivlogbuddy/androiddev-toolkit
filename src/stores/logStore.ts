@@ -25,7 +25,7 @@ interface LogStore {
   addEntry: (entry: LogEntry) => void;
   addEntries: (entries: LogEntry[]) => void;
   clearEntries: () => void;
-  addFilter: (filter: Filter) => void;
+  addFilter: (filter: Omit<Filter, 'id'>) => void;
   removeFilter: (id: string) => void;
   toggleFilter: (id: string) => void;
   setPaused: (paused: boolean) => void;
@@ -47,7 +47,9 @@ export const useLogStore = create<LogStore>((set) => ({
     })),
   clearEntries: () => set({ entries: [] }),
   addFilter: (filter) =>
-    set((state) => ({ filters: [...state.filters, filter] })),
+    set((state) => ({
+      filters: [...state.filters, { ...filter, id: `filter-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` }],
+    })),
   removeFilter: (id) =>
     set((state) => ({ filters: state.filters.filter((f) => f.id !== id) })),
   toggleFilter: (id) =>

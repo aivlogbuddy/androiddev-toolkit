@@ -34,7 +34,9 @@ export function ADBFileTransfer({ deviceId, mode: initialMode }: ADBFileTransfer
 
     const file = files[0];
     if (mode === 'push') {
-      setLocalPath(file.path || file.name);
+      // In Tauri, dropped files may have a path property
+      const filePath = (file as File & { path?: string }).path || file.name;
+      setLocalPath(filePath);
       // Placeholder: actual push logic via Tauri command
       simulateTransfer();
     } else {

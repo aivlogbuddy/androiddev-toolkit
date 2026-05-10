@@ -9,10 +9,6 @@ export interface SSHConfig {
   privateKeyPath?: string;
 }
 
-export interface ADBConnectConfig {
-  deviceId: string;
-}
-
 export interface SerialConfig {
   port: string;
   baudRate: number;
@@ -24,10 +20,17 @@ export interface ConnectResult {
   error?: string;
 }
 
-export interface DeviceInfo {
+export interface AdbDeviceInfo {
   id: string;
+  status: string;
+  product: string | null;
+  model: string | null;
+  device: string | null;
+}
+
+export interface SerialPortInfo {
   name: string;
-  type: string;
+  port_type: string;
 }
 
 export async function connectSSH(config: SSHConfig): Promise<ConnectResult> {
@@ -52,9 +55,17 @@ export async function disconnectSSH(sessionId: string): Promise<{ success: boole
   }
 }
 
-export async function listADBDevices(): Promise<DeviceInfo[]> {
+export async function execSSH(sessionId: string, command: string): Promise<string> {
   try {
-    return await invoke<DeviceInfo[]>('list_adb_devices');
+    return await invoke<string>('exec_ssh', { sessionId, command });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+export async function listADBDevices(): Promise<AdbDeviceInfo[]> {
+  try {
+    return await invoke<AdbDeviceInfo[]>('list_devices');
   } catch (error) {
     console.error('Failed to list ADB devices:', error);
     return [];
@@ -72,18 +83,40 @@ export async function connectADB(deviceId: string): Promise<ConnectResult> {
   }
 }
 
-export async function listSerialPorts(): Promise<string[]> {
+export async function disconnectADB(deviceId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    return await invoke<string[]>('list_serial_ports');
+    return await invoke<{ success: boolean; error?: string }>('disconnect_adb', { deviceId });
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function adbShell(deviceId: string, command: string): Promise<string> {
+  try {
+    return await invoke<string>('adb_shell', { deviceId, command });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+export async function adbLogcat(deviceId: string, args: string[]): Promise<string> {
+  try {
+    return await invoke<string>('adb_logcat', { deviceId, args });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+export async function listSerialPorts(): Promise<SerialPortInfo[]> {
+  try {
+    return await invoke<SerialPortInfo[]>('list_ports');
   } catch (error) {
     console.error('Failed to list serial ports:', error);
     return [];
   }
-}
-
-export interface SerialPortInfo2 {
-  port: string;
-  baudRate: number;
 }
 
 export async function connectSerial(config: SerialConfig): Promise<ConnectResult> {
@@ -108,9 +141,9 @@ export async function serialWrite(sessionId: string, data: string): Promise<{ su
   }
 }
 
-export async function serialRead(sessionId: string): Promise<string> {
+export async function serialRead(sessionId: string, bytes: number = 1024): Promise<string> {
   try {
-    return await invoke<string>('serial_read', { sessionId });
+    return await invoke<string>('serial_read', { sessionId, bytes });
   } catch (error) {
     return '';
   }

@@ -1,15 +1,13 @@
 import { useState, useCallback } from 'react';
-import { connectSerial, listSerialPorts, SerialConfig } from '../lib/tauri';
+import { connectSerial, listSerialPorts, disconnectSerial, serialWrite, serialRead, SerialConfig, SerialPortInfo } from '../lib/tauri';
 import { useDeviceStore } from '../stores/deviceStore';
 
-export interface SerialPortInfo2 {
-  port: string;
-  baudRate: number;
-}
-
 export interface UseSerialReturn {
-  refreshPorts: () => Promise<SerialPortInfo2[]>;
-  connect: (deviceId: string, config: SerialConfig) => Promise<string | null>;
+  refreshPorts: () => Promise<SerialPortInfo[]>;
+  connect: (deviceId: string, config: SerialConfig) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
+  disconnect: (deviceId: string, sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  write: (sessionId: string, data: string) => Promise<{ success: boolean; error?: string }>;
+  read: (sessionId: string, bytes?: number) => Promise<string>;
   loading: boolean;
   error: string | null;
 }
@@ -17,54 +15,98 @@ export interface UseSerialReturn {
 export function useSerial(): UseSerialReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setDeviceConnected } = useDeviceStore();
+  const setDeviceConnected = useDeviceStore((state) => state.setDeviceConnected);
 
-  const refreshPorts = useCallback(async () => {
+  const refreshPorts = useCallback(async (): Promise<SerialPortInfo[]> => {
     setLoading(true);
     setError(null);
     try {
       const ports = await listSerialPorts();
-      // Convert string array to SerialPortInfo2 array
-      // In a real implementation, we'd get more info from the backend
-      const portInfos: SerialPortInfo2[] = ports.map((port) => ({
-        port,
-        baudRate: 9600, // default baud rate
-      }));
-      return portInfos;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      return [];
-    } finally {
       setLoading(false);
+      return ports;
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setError(err);
+      setLoading(false);
+      return [];
     }
   }, []);
 
-  const connect = useCallback(
-    async (deviceId: string, config: SerialConfig): Promise<string | null> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await connectSerial(config);
-        if (result.success && result.session_id) {
-          setDeviceConnected(deviceId, true);
-          return result.session_id;
-        } else {
-          setError(result.error || 'Failed to connect');
-          return null;
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-        return null;
-      } finally {
+  const connect = useCallback(async (deviceId: string, config: SerialConfig): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await connectSerial(config);
+      if (result.success && result.session_id) {
+        setDeviceConnected(deviceId, true);
         setLoading(false);
+        return { success: true, sessionId: result.session_id };
+      } else {
+        setLoading(false);
+        return { success: false, error: result.error || 'Failed to connect' };
       }
-    },
-    [setDeviceConnected]
-  );
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setError(err);
+      setLoading(false);
+      return { success: false, error: err };
+    }
+  }, [setDeviceConnected]);
+
+  const disconnect = useCallback(async (deviceId: string, sessionId: string): Promise<{ success: boolean; error?: string }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await disconnectSerial(sessionId);
+      if (result.success) {
+        setDeviceConnected(deviceId, false);
+      }
+      setLoading(false);
+      return result;
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setError(err);
+      setLoading(false);
+      return { success: false, error: err };
+    }
+  }, [setDeviceConnected]);
+
+  const write = useCallback(async (sessionId: string, data: string): Promise<{ success: boolean; error?: string }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await serialWrite(sessionId, data);
+      setLoading(false);
+      return result;
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setError(err);
+      setLoading(false);
+      return { success: false, error: err };
+    }
+  }, []);
+
+  const read = useCallback(async (sessionId: string, bytes: number = 1024): Promise<string> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await serialRead(sessionId, bytes);
+      setLoading(false);
+      return result;
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setError(err);
+      setLoading(false);
+      return '';
+    }
+  }, []);
 
   return {
     refreshPorts,
     connect,
+    disconnect,
+    write,
+    read,
     loading,
     error,
   };

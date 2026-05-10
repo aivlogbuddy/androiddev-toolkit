@@ -46,8 +46,6 @@ fn parse_parity(parity: &Option<String>) -> Parity {
         Some("none") => Parity::None,
         Some("odd") => Parity::Odd,
         Some("even") => Parity::Even,
-        Some("mark") => Parity::Mark,
-        Some("space") => Parity::Space,
         _ => Parity::None,
     }
 }

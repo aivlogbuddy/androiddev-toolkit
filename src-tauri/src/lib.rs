@@ -1,5 +1,7 @@
 mod commands;
 
+use tauri::Manager;
+
 use commands::ssh::{connect_ssh, disconnect_ssh, exec_ssh, SshState};
 use commands::adb::{list_devices, connect_adb, disconnect_adb, adb_shell, adb_logcat};
 use commands::serial::{list_ports, connect_serial, disconnect_serial, serial_write, serial_read, SerialState};

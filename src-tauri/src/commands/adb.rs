@@ -1,7 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, serde::Serialize)]
 pub struct AdbDevice {
     pub id: String,
     pub status: String,
@@ -11,6 +11,7 @@ pub struct AdbDevice {
 }
 
 /// List all ADB devices using `adb devices -l`
+#[tauri::command]
 pub fn list_devices() -> Result<Vec<AdbDevice>, String> {
     let output = Command::new("adb")
         .args(["devices", "-l"])
@@ -24,15 +25,12 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut devices = Vec::new();
 
-    // Skip header line "List of devices attached"
     for line in stdout.lines().skip(1) {
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
 
-        // Parse line format: "serial product model device transport_id:XYZ"
-        // Example: "192.168.1.100:5555    product:aosp_arm64 model:Pixel_5 device:generic_arm64 transport_id:1"
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 2 {
             continue;
@@ -68,6 +66,7 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {
 }
 
 /// Connect to an ADB device using `adb connect <device_id>`
+#[tauri::command]
 pub fn connect_adb(device_id: String) -> Result<bool, String> {
     let output = Command::new("adb")
         .args(["connect", &device_id])
@@ -75,10 +74,11 @@ pub fn connect_adb(device_id: String) -> Result<bool, String> {
         .map_err(|e| format!("Failed to execute adb connect: {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    Ok(output.status.success() && stdout.contains("connected") || stdout.contains("already connected"))
+    Ok(output.status.success() && (stdout.contains("connected") || stdout.contains("already connected")))
 }
 
 /// Disconnect from an ADB device using `adb disconnect <device_id>`
+#[tauri::command]
 pub fn disconnect_adb(device_id: String) -> Result<bool, String> {
     let output = Command::new("adb")
         .args(["disconnect", &device_id])
@@ -89,6 +89,7 @@ pub fn disconnect_adb(device_id: String) -> Result<bool, String> {
 }
 
 /// Execute a shell command on an ADB device using `adb -s <device_id> shell <command>`
+#[tauri::command]
 pub fn adb_shell(device_id: String, command: String) -> Result<String, String> {
     let output = Command::new("adb")
         .args(["-s", &device_id, "shell", &command])
@@ -103,9 +104,10 @@ pub fn adb_shell(device_id: String, command: String) -> Result<String, String> {
 }
 
 /// Run logcat on an ADB device using `adb -s <device_id> logcat <args>`
+#[tauri::command]
 pub fn adb_logcat(device_id: String, args: Vec<String>) -> Result<String, String> {
-    let mut cmd_args = vec!["-s", &device_id, "logcat"];
-    cmd_args.extend(args);
+    let mut cmd_args: Vec<&str> = vec!["-s", &device_id, "logcat"];
+    cmd_args.extend(args.iter().map(|s| s.as_str()));
 
     let output = Command::new("adb")
         .args(&cmd_args)

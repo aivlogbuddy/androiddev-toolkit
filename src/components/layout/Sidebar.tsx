@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 interface Device {
   id: string;
@@ -11,6 +11,7 @@ interface SidebarProps {
   devices: Device[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
+  onAddDevice: () => void;
 }
 
 interface DeviceGroupProps {
@@ -31,7 +32,6 @@ function DeviceGroup({ title, icon, devices, selectedDeviceId, onDeviceSelect, d
     serial: '🔌',
   };
 
-  // Group devices by their group property
   const groupedDevices: Record<string, Device[]> = {};
   devices.forEach(device => {
     if (!groupedDevices[device.group]) {
@@ -77,42 +77,80 @@ function DeviceGroup({ title, icon, devices, selectedDeviceId, onDeviceSelect, d
   );
 }
 
-export default function Sidebar({ devices, selectedDeviceId, onDeviceSelect }: SidebarProps) {
+export default function Sidebar({ devices, selectedDeviceId, onDeviceSelect, onAddDevice }: SidebarProps) {
+  const [width, setWidth] = useState(180);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(120, Math.min(400, e.clientX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
   const sshDevices = devices.filter(d => d.type === 'ssh');
   const adbDevices = devices.filter(d => d.type === 'adb');
   const serialDevices = devices.filter(d => d.type === 'serial');
 
   return (
-    <div className="w-16 bg-gray-100 h-full flex flex-col border-r border-gray-300">
-      <div className="flex-1 overflow-y-auto py-2">
-        <DeviceGroup
-          title="SSH"
-          icon="🔗"
-          devices={sshDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          defaultExpanded={true}
-        />
-        <DeviceGroup
-          title="ADB"
-          icon="📲"
-          devices={adbDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          defaultExpanded={true}
-        />
-        <DeviceGroup
-          title="Serial"
-          icon="🔌"
-          devices={serialDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          defaultExpanded={true}
-        />
+    <div className="relative h-full flex">
+      <div
+        ref={sidebarRef}
+        className="bg-gray-100 h-full flex flex-col border-r border-gray-300 overflow-hidden"
+        style={{ width: `${width}px`, minWidth: `${width}px` }}
+      >
+        <div className="flex-1 overflow-y-auto py-2">
+          <DeviceGroup
+            title="SSH"
+            icon="🔗"
+            devices={sshDevices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceSelect={onDeviceSelect}
+            defaultExpanded={true}
+          />
+          <DeviceGroup
+            title="ADB"
+            icon="📲"
+            devices={adbDevices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceSelect={onDeviceSelect}
+            defaultExpanded={true}
+          />
+          <DeviceGroup
+            title="Serial"
+            icon="🔌"
+            devices={serialDevices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceSelect={onDeviceSelect}
+            defaultExpanded={true}
+          />
+        </div>
+        <button
+          onClick={onAddDevice}
+          className="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-200 border-t border-gray-300 transition-colors text-left"
+        >
+          + 添加设备
+        </button>
       </div>
-      <button className="w-full px-2 py-2 text-xs text-gray-600 hover:bg-gray-200 border-t border-gray-300 transition-colors">
-        + 添加设备
-      </button>
+      <div
+        onMouseDown={handleMouseDown}
+        className={`w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors ${
+          isResizing ? 'bg-blue-500' : ''
+        }`}
+      />
     </div>
   );
 }

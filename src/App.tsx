@@ -3,6 +3,7 @@ import Sidebar from './components/layout/Sidebar';
 import TabBar, { Tab } from './components/layout/TabBar';
 import ContentArea from './components/layout/ContentArea';
 import StatusBar from './components/layout/StatusBar';
+import AddDeviceDialog from './components/layout/AddDeviceDialog';
 import { SSHTerminal } from './components/ssh/SSHTerminal';
 import { SSHFileTransfer } from './components/ssh/SSHFileTransfer';
 import { ADBTerminal } from './components/adb/ADBTerminal';
@@ -20,6 +21,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showMasterPassword, setShowMasterPassword] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showAddDevice, setShowAddDevice] = useState(false);
 
   const devices = useDeviceStore((state) => state.devices);
   const selectedDeviceId = useDeviceStore((state) => state.selectedDeviceId);
@@ -175,7 +177,7 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <Sidebar devices={devices} selectedDeviceId={selectedDeviceId} onDeviceSelect={handleDeviceSelect} />
+        <Sidebar devices={devices} selectedDeviceId={selectedDeviceId} onDeviceSelect={handleDeviceSelect} onAddDevice={() => setShowAddDevice(true)} />
 
         {/* Center Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -207,6 +209,9 @@ function App() {
       {showMasterPassword && !isUnlocked && (
         <MasterPasswordDialog onUnlock={() => setIsUnlocked(true)} onSkip={() => setShowMasterPassword(false)} />
       )}
+
+      {/* Add Device Dialog */}
+      <AddDeviceDialog isOpen={showAddDevice} onClose={() => setShowAddDevice(false)} />
     </div>
   );
 }
